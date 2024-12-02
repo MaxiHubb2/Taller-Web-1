@@ -181,7 +181,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         var script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDO-cs-AzjPpidbANQOQr9bWXK1mw0I9Ww&callback=initMap`;
+        script.src = `https://maps.googleapis.com/maps/api/js?${apiKey}callback=initMap`;
         script.async = true;
         script.defer = true;
         document.head.appendChild(script);
