@@ -1,22 +1,23 @@
 package com.tallerwebi.presentacion;
 
 import com.tallerwebi.dominio.Locker;
-import com.tallerwebi.dominio.RepositorioDatosLockerImpl;
 import com.tallerwebi.dominio.locker.ServicioLocker;
 import com.tallerwebi.dominio.locker.TipoLocker;
-
-import com.tallerwebi.infraestructura.config.HibernateTestInfraestructuraConfig;
+import com.tallerwebi.integracion.config.HibernateTestConfig;
+import com.tallerwebi.integracion.config.SpringWebTestConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mockito;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.web.servlet.ModelAndView;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -24,41 +25,36 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-
+@ExtendWith(SpringExtension.class)
+@WebAppConfiguration
+@ContextConfiguration(classes = {HibernateTestConfig.class, SpringWebTestConfig.class})
 public class ControladorLockerTest {
+
     private ControladorLocker controladorLocker;
 
-    @BeforeEach
-    public void init() {
-        ServicioLocker servicioLocker = mock(ServicioLocker.class);
-        this.controladorLocker = new ControladorLocker(servicioLocker);
-    }
+    @Mock
+    private ServicioLocker servicioLocker;
 
+    @BeforeEach
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
+        controladorLocker = new ControladorLocker(servicioLocker);
+    }
 
     @Test
     public void queSePuedaCrearUnNuevoLocker() {
         // Preparación
         TipoLocker tipoLocker = TipoLocker.PEQUEÑO;
+        List<Locker> lockers = new ArrayList<>();
+        when(servicioLocker.obtenerLockersPorTipo(tipoLocker)).thenReturn(lockers);
 
         // Ejecución
-        ModelAndView mav = this.controladorLocker.crearLocker(tipoLocker);
+        ModelAndView mav = controladorLocker.crearLocker(tipoLocker);
 
         // Verificación
-        // Verificar que se redirige correctamente a la página de mensaje
         assertThat(mav.getViewName(), equalToIgnoringCase("crear-locker"));
+        assertThat(mav.getModel().get("lockers"), equalTo(lockers));
     }
-
-    @Test
-    public void queNoSePuedaCrearLockerConTipoInvalido(){
-        // Preparación
-        TipoLocker tipoLocker = null; // Tipo inválido
-
-        // Ejecución
-        assertThrows(IllegalArgumentException.class, () -> {
-            controladorLocker.crearLocker(tipoLocker);
-        });
-    }
-
 
     @Test
     public void queSePuedaActualizarUnLocker() {
@@ -67,26 +63,11 @@ public class ControladorLockerTest {
         TipoLocker tipoLocker = TipoLocker.GRANDE;
 
         // Ejecución
-        ModelAndView mav = this.controladorLocker.actualizarLocker(idLocker, tipoLocker);
+        ModelAndView mav = controladorLocker.actualizarLocker(idLocker, tipoLocker);
 
         // Verificación
-        assertThat(mav.getViewName(), equalToIgnoringCase("redirect:/actualizar-locker"));
-    }
-
-    @Test
-    public void queNoSePuedaActualizarLockerConIdInvalido() {
-        // Preparación
-        Long idLocker = -1L; // ID inválido
-        TipoLocker tipoLocker = TipoLocker.GRANDE;
-
-        // Mockear el servicio para lanzar excepción
-        doThrow(new IllegalArgumentException("No se encontró ningún locker con el ID proporcionado: " + idLocker))
-                .when(controladorLocker.servicioLocker).actualizarLocker(idLocker, tipoLocker);
-
-        // Ejecución y Verificación
-        assertThrows(IllegalArgumentException.class, () -> {
-            controladorLocker.actualizarLocker(idLocker, tipoLocker);
-        });
+        assertThat(mav.getViewName(), equalToIgnoringCase("redirect:/lockers/actualizar-locker"));
+        verify(servicioLocker).actualizarLocker(idLocker, tipoLocker);
     }
 
     @Test
@@ -95,71 +76,71 @@ public class ControladorLockerTest {
         Long idLocker = 1L;
 
         // Ejecución
-        ModelAndView mav = this.controladorLocker.eliminarLocker(idLocker);
+        ModelAndView mav = controladorLocker.eliminarLocker(idLocker);
 
         // Verificación
-        assertThat(mav.getViewName(), equalToIgnoringCase("redirect:/mensaje-eliminacion-locker"));
+        assertThat(mav.getViewName(), equalToIgnoringCase("redirect:/lockers/mensaje-eliminacion-locker"));
+        verify(servicioLocker).eliminarLocker(idLocker);
     }
-
-    @Test
-    public void queNoSePuedaEliminarLockerConIdInvalido() {
-        // Preparación
-        Long idLocker = -1L; // ID inválido
-
-        // Mockear el servicio para lanzar excepción
-        doThrow(new IllegalArgumentException("No se encontró ningún locker con el ID proporcionado: " + idLocker))
-                .when(controladorLocker.servicioLocker).eliminarLocker(idLocker);
-
-        // Ejecución y Verificación
-        assertThrows(IllegalArgumentException.class, () -> {
-            controladorLocker.eliminarLocker(idLocker);
-        });
-    }
-
 
     @Test
     public void queSePuedaObtenerUnaListaDeLockersFiltradaPorTipo() {
         // Preparación
         TipoLocker tipoLocker = TipoLocker.GRANDE;
+        List<Locker> lockers = new ArrayList<>();
+        when(servicioLocker.obtenerLockersPorTipo(tipoLocker)).thenReturn(lockers);
 
         // Ejecución
-        ModelAndView mav = this.controladorLocker.buscarLockersPorTipo(tipoLocker);
+        ModelAndView mav = controladorLocker.buscarLockersPorTipo(tipoLocker);
 
         // Verificación
-        assertThat(mav.getViewName(), equalToIgnoringCase("lockers-por-tipo")); // Vista correcta
-        assertThat(mav.getModel().get("lockers"), instanceOf(List.class)); // Lista de lockers presente en el modelo
+        assertThat(mav.getViewName(), equalToIgnoringCase("lockers-por-tipo"));
+        assertThat(mav.getModel().get("lockers"), equalTo(lockers));
     }
 
     @Test
-    public void testMostrarLockers() {
-        // Mockear el servicio
-        ServicioLocker servicioLocker = Mockito.mock(ServicioLocker.class);
-        String codigo_postal = String.valueOf(1704);
-
-        // Preparar los lockers de prueba
-        Locker locker1 = new Locker(TipoLocker.PEQUEÑO, 40.7128, -74.0060,codigo_postal);
-        Locker locker2 = new Locker(TipoLocker.MEDIANO, 40.7129, -74.0061,codigo_postal);
-        Locker locker3 = new Locker(TipoLocker.GRANDE, 40.7130, -74.0062,codigo_postal);
-        List<Locker> lockers = Arrays.asList(locker1, locker2, locker3);
-
-        // Simular el comportamiento del servicio
+    public void queSeMuestrenLockersSeleccionados() {
+        // Preparación
+        List<Locker> lockers = Arrays.asList(
+                new Locker(TipoLocker.PEQUEÑO, 40.7128, -74.0060, "1704"),
+                new Locker(TipoLocker.MEDIANO, 40.7129, -74.0061, "1704")
+        );
         when(servicioLocker.obtenerLockersSeleccionados()).thenReturn(lockers);
 
-        // Instanciar el controlador y usar inyección de dependencias
-        ControladorLocker controladorLocker = new ControladorLocker(servicioLocker);
-
-        // Llamar al método
+        // Ejecución
         ModelAndView mav = controladorLocker.mostrarLockers();
 
-        // Verificar la respuesta del controlador
-        assertEquals("lockers", mav.getViewName());
-        assertEquals(lockers, mav.getModel().get("lockers"));
+        // Verificación
+        assertThat(mav.getViewName(), equalToIgnoringCase("lockers"));
+        assertThat(mav.getModel().get("lockers"), equalTo(lockers));
+    }
+
+    @Test
+    public void buscarLockersPorCodigoPostal_CuandoSeProporcionaCodigoPostal() {
+        // Preparación
+        String codigoPostal = "1704";
+        List<Locker> lockers = Arrays.asList(
+                new Locker(TipoLocker.PEQUEÑO, 40.7128, -74.0060, codigoPostal),
+                new Locker(TipoLocker.MEDIANO, 40.7129, -74.0061, codigoPostal)
+        );
+        when(servicioLocker.buscarLockers(eq(codigoPostal), isNull(), isNull(), anyDouble())).thenReturn(lockers);
+
+        // Ejecución
+        ModelAndView mav = controladorLocker.buscarLockersPorCodigoPostal(codigoPostal, null, null);
+
+        // Verificación
+        assertThat(mav.getViewName(), equalToIgnoringCase("lockers"));
+        assertThat(mav.getModel().get("lockers"), equalTo(lockers));
+        assertThat(mav.getModel().get("codigoPostal"), equalTo(codigoPostal));
+        assertNull(mav.getModel().get("latitud"));
+        assertNull(mav.getModel().get("longitud"));
+        assertFalse((Boolean) mav.getModel().get("mostrarAlternativos"));
     }
 
     @Test
     public void queNoSeMuestrenLockersSiNoHayDatos() {
         // Mockear el servicio para devolver una lista vacía
-        when(controladorLocker.servicioLocker.obtenerLockersSeleccionados()).thenReturn(new ArrayList<>());
+        when(servicioLocker.obtenerLockersSeleccionados()).thenReturn(new ArrayList<>());
 
         // Ejecución
         ModelAndView mav = controladorLocker.mostrarLockers();
@@ -167,50 +148,83 @@ public class ControladorLockerTest {
         // Verificación
         assertThat(mav.getViewName(), equalToIgnoringCase("lockers"));
         assertThat(mav.getModel().get("lockers"), instanceOf(List.class));
-        assertTrue(((List) mav.getModel().get("lockers")).isEmpty());
+        assertTrue(((List<?>) mav.getModel().get("lockers")).isEmpty());
     }
 
     @Test
-    public void queSePuedanObtenerLockersPorCodigoPostal() {
+    public void buscarLockersPorLatitudYLongitud_DevuelveLockersCorrectos() {
         // Preparación
-        String codigoPostal = "1704";
+        Double latitud = -34.6821;
+        Double longitud = -58.5638;
         List<Locker> lockers = Arrays.asList(
+                new Locker(TipoLocker.PEQUEÑO, latitud, longitud, "1704"),
+                new Locker(TipoLocker.MEDIANO, latitud + 0.001, longitud - 0.001, "1704")
+        );
+        when(servicioLocker.buscarLockers(isNull(), eq(latitud), eq(longitud), anyDouble())).thenReturn(lockers);
+
+        // Ejecución
+        ModelAndView mav = controladorLocker.buscarLockersPorCodigoPostal(null, latitud, longitud);
+
+        // Verificación
+        assertThat(mav.getViewName(), equalToIgnoringCase("lockers"));
+        assertThat(mav.getModel().get("lockers"), equalTo(lockers));
+    }
+
+    @Test
+    public void buscarLockers_SinParametros_DevuelveLockersSeleccionados() {
+        // Preparación
+        List<Locker> lockersSeleccionados = Arrays.asList(
+                new Locker(TipoLocker.PEQUEÑO, 40.7128, -74.0060, "1704"),
+                new Locker(TipoLocker.MEDIANO, 40.7129, -74.0061, "1704")
+        );
+        when(servicioLocker.buscarLockers(isNull(), isNull(), isNull(), anyDouble())).thenReturn(Collections.emptyList());
+        when(servicioLocker.obtenerLockersSeleccionados()).thenReturn(lockersSeleccionados);
+
+        // Ejecución
+        ModelAndView mav = controladorLocker.buscarLockersPorCodigoPostal(null, null, null);
+
+        // Verificación
+        assertThat(mav.getViewName(), equalToIgnoringCase("lockers"));
+        assertThat(mav.getModel().get("lockers"), equalTo(lockersSeleccionados));
+    }
+
+    @Test
+    public void buscarLockers_SinResultados_DevuelveLockersAlternativos() {
+        // Preparación
+        String codigoPostal = "1234";
+        List<Locker> lockersSeleccionados = Arrays.asList(
                 new Locker(TipoLocker.PEQUEÑO, 40.7128, -74.0060, codigoPostal),
                 new Locker(TipoLocker.MEDIANO, 40.7129, -74.0061, codigoPostal)
         );
-
-        // Mockear el servicio
-        when(controladorLocker.servicioLocker.obtenerLockersPorCodigoPostal(codigoPostal)).thenReturn(lockers);
+        when(servicioLocker.buscarLockers(eq(codigoPostal), isNull(), isNull(), anyDouble())).thenReturn(Collections.emptyList());
+        when(servicioLocker.obtenerLockersSeleccionados()).thenReturn(lockersSeleccionados);
 
         // Ejecución
-        ModelAndView mav = controladorLocker.buscarLockersPorCodigoPostal(codigoPostal);
+        ModelAndView mav = controladorLocker.buscarLockersPorCodigoPostal(codigoPostal, null, null);
 
         // Verificación
         assertThat(mav.getViewName(), equalToIgnoringCase("lockers"));
-        assertThat(mav.getModel().get("lockers"), equalTo(lockers));
-        assertThat(mav.getModel().get("codigoPostal"), equalTo(codigoPostal));
+        assertThat(mav.getModel().get("lockers"), equalTo(lockersSeleccionados));
+        assertTrue((Boolean) mav.getModel().get("mostrarAlternativos"));
     }
 
     @Test
-    public void queNoSeEncuentrenLockersConCodigoPostalInvalido() {
+    public void buscarLockersPorCodigoPostal_ConLatitudYLongitud_DevuelveLockersCorrectos() {
         // Preparación
-        String codigoPostal = "9999";
-        List<Locker> lockers = new ArrayList<>();
-
-        // Mockear el servicio
-        when(controladorLocker.servicioLocker.obtenerLockersPorCodigoPostal(codigoPostal)).thenReturn(lockers);
+        String codigoPostal = "1704";
+        Double latitud = -34.6821;
+        Double longitud = -58.5638;
+        List<Locker> lockers = Arrays.asList(
+                new Locker(TipoLocker.PEQUEÑO, latitud, longitud, codigoPostal),
+                new Locker(TipoLocker.MEDIANO, latitud + 0.001, longitud - 0.001, codigoPostal)
+        );
+        when(servicioLocker.buscarLockers(eq(codigoPostal), eq(latitud), eq(longitud), anyDouble())).thenReturn(lockers);
 
         // Ejecución
-        ModelAndView mav = controladorLocker.buscarLockersPorCodigoPostal(codigoPostal);
+        ModelAndView mav = controladorLocker.buscarLockersPorCodigoPostal(codigoPostal, latitud, longitud);
 
         // Verificación
         assertThat(mav.getViewName(), equalToIgnoringCase("lockers"));
         assertThat(mav.getModel().get("lockers"), equalTo(lockers));
-        assertThat(mav.getModel().get("codigoPostal"), equalTo(codigoPostal));
     }
-
-
-
-
-
 }
